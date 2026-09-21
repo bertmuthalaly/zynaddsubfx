@@ -54,6 +54,12 @@ public:
     ZynAddSubFXUI()
         : UI(1181, 659)
     {
+        // Scale the window by the desktop/host scale factor WITHOUT DPF's
+        // viewport auto-scaling: zest is resolution-independent and draws at
+        // the full pixel size given via uiReshape()/zest_resize().
+        // (automaticallyScale would instead scale the GL viewport, expecting
+        // logical-size drawing, which would double-scale zest's output.)
+        setGeometryConstraints(1181, 659, true, false);
         printf("[INFO] Opened the zynaddsubfx UI...\n");
 #ifdef WIN32
         char path[1024];
@@ -233,6 +239,11 @@ protected:
             z.zest = z.zest_open(address);
             printf("[INFO:Zyn] zest_setup(%s)\n", address);
             z.zest_setup(z.zest);
+
+            // The initial uiReshape() arrives before zest exists and is
+            // dropped, so push the real size now (crucial on HiDPI where
+            // the window is scale-factor times larger than zest's default)
+            z.zest_resize(z.zest, getWidth(), getHeight());
         }
 
         z.zest_draw(z.zest);
