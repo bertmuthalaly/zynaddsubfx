@@ -240,6 +240,41 @@ if(NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
             COMMAND codesign --force --sign -
                 "${CMAKE_CURRENT_BINARY_DIR}/vst/ZynAddSubFX.vst"
             COMMENT "Assembling and ad-hoc signing ZynAddSubFX.vst bundle")
+        if(ZestGui)
+            # The Zest UI is loaded at runtime: the plugin dlopens
+            # @loader_path/../Resources/libzest.dylib, and zest looks for its
+            # assets (qml/MainWindow.qml existence check, font/*.ttf,
+            # schema/test.json) next to libzest. Embed them in Resources,
+            # then re-sign so the resource seal stays valid.
+            set(ZEST_BUILD_DIR ${CMAKE_SOURCE_DIR}/mruby-zest-build)
+            if(EXISTS ${ZEST_BUILD_DIR}/libzest.dylib)
+                set(VST_RESOURCES
+                    "${CMAKE_CURRENT_BINARY_DIR}/vst/ZynAddSubFX.vst/Contents/Resources")
+                add_custom_command(TARGET ZynAddSubFX_vst POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy
+                        "${ZEST_BUILD_DIR}/libzest.dylib"
+                        "${VST_RESOURCES}/libzest.dylib"
+                    COMMAND ${CMAKE_COMMAND} -E make_directory "${VST_RESOURCES}/qml"
+                    COMMAND ${CMAKE_COMMAND} -E touch "${VST_RESOURCES}/qml/MainWindow.qml"
+                    COMMAND ${CMAKE_COMMAND} -E make_directory "${VST_RESOURCES}/font"
+                    COMMAND ${CMAKE_COMMAND} -E copy
+                        "${ZEST_BUILD_DIR}/deps/nanovg/example/Roboto-Regular.ttf"
+                        "${ZEST_BUILD_DIR}/deps/nanovg/example/Roboto-Bold.ttf"
+                        "${ZEST_BUILD_DIR}/deps/nanovg/example/entypo.ttf"
+                        "${VST_RESOURCES}/font/"
+                    COMMAND ${CMAKE_COMMAND} -E make_directory "${VST_RESOURCES}/schema"
+                    COMMAND ${CMAKE_COMMAND} -E copy
+                        "${ZEST_BUILD_DIR}/src/osc-bridge/schema/test.json"
+                        "${VST_RESOURCES}/schema/test.json"
+                    COMMAND codesign --force --sign -
+                        "${CMAKE_CURRENT_BINARY_DIR}/vst/ZynAddSubFX.vst"
+                    COMMENT "Embedding Zest UI assets into ZynAddSubFX.vst")
+            else()
+                message(WARNING
+                    "mruby-zest-build/libzest.dylib not found; "
+                    "ZynAddSubFX.vst will be built without a working GUI")
+            endif()
+        endif()
         install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/vst/ZynAddSubFX.vst
             DESTINATION ${PluginLibDir}/vst
             USE_SOURCE_PERMISSIONS)
