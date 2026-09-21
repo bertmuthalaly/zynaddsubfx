@@ -217,7 +217,29 @@ endif()
 
 if(NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
     install(TARGETS ZynAddSubFX_lv2 LIBRARY DESTINATION ${PluginLibDir}/lv2/ZynAddSubFX.lv2/)
-    install(TARGETS ZynAddSubFX_vst LIBRARY DESTINATION ${PluginLibDir}/vst/)
+    if(APPLE)
+        # macOS VST2 hosts (Ableton Live, etc.) expect a .vst bundle, not a
+        # bare dylib. Assemble one from the DPF template, mirroring what
+        # DPF/utils/generate-vst-bundles.sh does for DPF's own builds.
+        set(INFO_PLIST_PROJECT_NAME "ZynAddSubFX")
+        configure_file(${CMAKE_SOURCE_DIR}/DPF/utils/plugin.vst/Contents/Info.plist
+            ${CMAKE_CURRENT_BINARY_DIR}/vst/ZynAddSubFX.vst/Contents/Info.plist @ONLY)
+        add_custom_command(TARGET ZynAddSubFX_vst POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                "${CMAKE_CURRENT_BINARY_DIR}/vst/ZynAddSubFX.vst/Contents/MacOS"
+            COMMAND ${CMAKE_COMMAND} -E copy
+                "${CMAKE_SOURCE_DIR}/DPF/utils/plugin.vst/Contents/PkgInfo"
+                "${CMAKE_CURRENT_BINARY_DIR}/vst/ZynAddSubFX.vst/Contents/PkgInfo"
+            COMMAND ${CMAKE_COMMAND} -E copy
+                "$<TARGET_FILE:ZynAddSubFX_vst>"
+                "${CMAKE_CURRENT_BINARY_DIR}/vst/ZynAddSubFX.vst/Contents/MacOS/ZynAddSubFX"
+            COMMENT "Assembling ZynAddSubFX.vst bundle")
+        install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/vst/ZynAddSubFX.vst
+            DESTINATION ${PluginLibDir}/vst
+            USE_SOURCE_PERMISSIONS)
+    else()
+        install(TARGETS ZynAddSubFX_vst LIBRARY DESTINATION ${PluginLibDir}/vst/)
+    endif()
 
     add_custom_command(TARGET ZynAddSubFX_lv2 POST_BUILD
         COMMAND ../../lv2-ttl-generator $<TARGET_FILE:ZynAddSubFX_lv2>
