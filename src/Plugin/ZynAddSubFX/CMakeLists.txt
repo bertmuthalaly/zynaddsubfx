@@ -39,6 +39,14 @@ add_library(ZynAddSubFX_lv2_ui SHARED
     ${CMAKE_SOURCE_DIR}/DPF/distrho/DistrhoUIMain.cpp
     ZynAddSubFX-UI.cpp)
 
+if(APPLE)
+    target_sources(ZynAddSubFX_lv2_ui PRIVATE
+        ${CMAKE_SOURCE_DIR}/DPF/distrho/DistrhoUI_macOS.mm)
+    set_source_files_properties(${CMAKE_SOURCE_DIR}/DPF/distrho/DistrhoUI_macOS.mm
+        PROPERTIES COMPILE_DEFINITIONS "PUGL_NAMESPACE=ZynAddSubFX")
+    target_link_libraries(ZynAddSubFX_lv2_ui "-framework Cocoa")
+endif()
+
 add_library(ZynAddSubFX_vst SHARED
     ${CMAKE_SOURCE_DIR}/src/globals.cpp
     ${CMAKE_SOURCE_DIR}/src/UI/ConnectionDummy.cpp
@@ -54,6 +62,16 @@ add_library(ZynAddSubFX_lv2 SHARED
     ${CMAKE_SOURCE_DIR}/src/UI/ConnectionDummy.cpp
     ${CMAKE_SOURCE_DIR}/DPF/distrho/DistrhoPluginMain.cpp
     ZynAddSubFX.cpp)
+
+# On macOS the pugl backend is Objective-C++; DPF wraps it (with namespaced
+# ObjC classes) in DistrhoUI_macOS.mm, which replaces pugl.cpp entirely.
+if(APPLE)
+    set(DPF_PUGL_SOURCES ${CMAKE_SOURCE_DIR}/DPF/distrho/DistrhoUI_macOS.mm)
+    set_source_files_properties(${CMAKE_SOURCE_DIR}/DPF/distrho/DistrhoUI_macOS.mm
+        PROPERTIES COMPILE_DEFINITIONS "PUGL_NAMESPACE=ZynAddSubFX")
+else()
+    set(DPF_PUGL_SOURCES ${CMAKE_SOURCE_DIR}/DPF/dgl/src/pugl.cpp)
+endif()
 
 add_library(ZynAddSubFX_lv2_ui SHARED
     ${CMAKE_SOURCE_DIR}/DPF/dgl/src/Application.cpp
@@ -73,7 +91,7 @@ add_library(ZynAddSubFX_lv2_ui SHARED
     ${CMAKE_SOURCE_DIR}/DPF/dgl/src/WidgetPrivateData.cpp
     ${CMAKE_SOURCE_DIR}/DPF/dgl/src/Window.cpp
     ${CMAKE_SOURCE_DIR}/DPF/dgl/src/WindowPrivateData.cpp
-    ${CMAKE_SOURCE_DIR}/DPF/dgl/src/pugl.cpp
+    ${DPF_PUGL_SOURCES}
     ${CMAKE_SOURCE_DIR}/DPF/distrho/DistrhoUIMain.cpp
     ZynAddSubFX-UI-Zest.cpp)
 
@@ -106,7 +124,7 @@ add_library(ZynAddSubFX_vst SHARED
     ${CMAKE_SOURCE_DIR}/DPF/dgl/src/WidgetPrivateData.cpp
     ${CMAKE_SOURCE_DIR}/DPF/dgl/src/Window.cpp
     ${CMAKE_SOURCE_DIR}/DPF/dgl/src/WindowPrivateData.cpp
-    ${CMAKE_SOURCE_DIR}/DPF/dgl/src/pugl.cpp
+    ${DPF_PUGL_SOURCES}
     ZynAddSubFX.cpp
     ZynAddSubFX-UI-Zest.cpp)
 
@@ -183,14 +201,14 @@ if(NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
 endif()
 if(APPLE)
     target_link_libraries(ZynAddSubFX_vst zynaddsubfx_core ${OS_LIBRARIES} ${LIBLO_LIBRARIES}
-        ${PLATFORM_LIBRARIES} "-framework Cocoa" "-framework openGL" "-Wl,-exported_symbol,_VSTPluginMain")
+        ${PLATFORM_LIBRARIES} "-framework Cocoa" "-framework openGL" "-framework CoreVideo" "-Wl,-exported_symbol,_VSTPluginMain")
 else()
     target_link_libraries(ZynAddSubFX_vst zynaddsubfx_core ${OS_LIBRARIES} ${LIBLO_LIBRARIES}
         ${PLATFORM_LIBRARIES})
 endif()
 if(ZestGui AND NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
     if(APPLE)
-        target_link_libraries(ZynAddSubFX_lv2_ui "-framework Cocoa" "-framework openGL" "-Wl,-exported_symbol,_lv2ui_descriptor")
+        target_link_libraries(ZynAddSubFX_lv2_ui "-framework Cocoa" "-framework openGL" "-framework CoreVideo" "-Wl,-exported_symbol,_lv2ui_descriptor")
         target_link_libraries(ZynAddSubFX_lv2 "-Wl,-exported_symbol,_lv2_descriptor" "-Wl,-exported_symbol,_lv2_generate_ttl")
     else()
         target_link_libraries(ZynAddSubFX_lv2_ui X11 GL)
