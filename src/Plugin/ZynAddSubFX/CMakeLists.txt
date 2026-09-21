@@ -233,7 +233,13 @@ if(NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
             COMMAND ${CMAKE_COMMAND} -E copy
                 "$<TARGET_FILE:ZynAddSubFX_vst>"
                 "${CMAKE_CURRENT_BINARY_DIR}/vst/ZynAddSubFX.vst/Contents/MacOS/ZynAddSubFX"
-            COMMENT "Assembling ZynAddSubFX.vst bundle")
+            # Re-sign the assembled bundle: the linker's ad-hoc signature was
+            # made for a bare dylib and fails bundle verification (-67056,
+            # no _CodeSignature/CodeResources seal), so hosts like Ableton
+            # Live reject the plugin during their scan.
+            COMMAND codesign --force --sign -
+                "${CMAKE_CURRENT_BINARY_DIR}/vst/ZynAddSubFX.vst"
+            COMMENT "Assembling and ad-hoc signing ZynAddSubFX.vst bundle")
         install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/vst/ZynAddSubFX.vst
             DESTINATION ${PluginLibDir}/vst
             USE_SOURCE_PERMISSIONS)
